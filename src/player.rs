@@ -1,6 +1,7 @@
 use crate::{
     config::{
-        PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_X, PLAYER_Y, STEP_TIME, STEP_X, STEP_Y,
+        HALF_HEIGHT, HALF_WIDTH, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_X, PLAYER_Y,
+        STEP_TIME, STEP_X, STEP_Y,
     },
     grid::ToTranslation,
     not_spawned,
@@ -41,7 +42,8 @@ impl Plugin for PlayerPlugin {
         )))
         .add_system(Player::spawn.run_if(not_spawned::<Player>))
         .add_system(Player::moving)
-        .add_system(Player::controls);
+        .add_system(Player::controls)
+        .add_system(Player::out_bounds);
     }
 }
 
@@ -105,6 +107,20 @@ impl Player {
 
             if new_direction != direction.invert() && new_direction != Direction::None {
                 *direction = new_direction;
+            }
+        }
+    }
+
+    pub fn out_bounds(transform: Query<&Transform, With<Player>>) {
+        if let Ok(transform) = transform.get_single() {
+            let Transform { translation, .. } = transform;
+
+            if translation.x < -HALF_WIDTH
+                || translation.x > HALF_WIDTH
+                || translation.y < -HALF_HEIGHT
+                || translation.y > HALF_HEIGHT
+            {
+                dbg!("OUT OF BOUNDS");
             }
         }
     }
