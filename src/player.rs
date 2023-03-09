@@ -3,6 +3,7 @@ use crate::{
         HALF_HEIGHT, HALF_WIDTH, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_X, PLAYER_Y,
         STEP_TIME, STEP_X, STEP_Y,
     },
+    food::Food,
     grid::ToTranslation,
     not_spawned,
 };
@@ -10,6 +11,8 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 #[derive(Resource)]
 pub struct PlayerMoveTimer(Timer);
+
+pub struct PlayerGrowthEvent;
 
 #[derive(Component, PartialEq, Eq)]
 pub enum Direction {
@@ -43,7 +46,8 @@ impl Plugin for PlayerPlugin {
         .add_system(Player::spawn.run_if(not_spawned::<Player>))
         .add_system(Player::moving)
         .add_system(Player::controls)
-        .add_system(Player::out_bounds);
+        .add_system(Player::out_bounds)
+        .add_system(Player::eat);
     }
 }
 
@@ -56,7 +60,7 @@ impl Player {
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
     ) {
-        let player: MaterialMesh2dBundle<ColorMaterial> = MaterialMesh2dBundle {
+        let player_mesh: MaterialMesh2dBundle<ColorMaterial> = MaterialMesh2dBundle {
             transform: Transform {
                 translation: Vec3::new(PLAYER_X, PLAYER_Y, 1.),
                 scale: Vec3::new(PLAYER_WIDTH, PLAYER_HEIGHT, 1.),
@@ -67,7 +71,7 @@ impl Player {
             ..default()
         };
 
-        cmd.spawn(player)
+        cmd.spawn(player_mesh)
             .insert(Player)
             .insert(ToTranslation)
             .insert(Direction::None);
@@ -115,13 +119,43 @@ impl Player {
         if let Ok(transform) = transform.get_single() {
             let Transform { translation, .. } = transform;
 
-            if translation.x < -HALF_WIDTH
+            let out_bounds: bool = translation.x < -HALF_WIDTH
                 || translation.x > HALF_WIDTH
                 || translation.y < -HALF_HEIGHT
-                || translation.y > HALF_HEIGHT
-            {
+                || translation.y > HALF_HEIGHT;
+
+            if out_bounds {
                 dbg!("OUT OF BOUNDS");
             }
         }
     }
+
+    pub fn eat(
+        mut cmd: Commands,
+        player: Query<&Transform, With<Self>>,
+        food: Query<(&Transform, Entity), With<Food>>,
+    ) {
+        if let Ok(player_transform) = player.get_single() {
+            let player_x: f32 = player_transform.translation.x;
+            let player_y: f32 = player_transform.translation.y;
+
+            let is_it_eaten = |food: (&Transform, Entity)| -> () {
+                let (food_transform, food) = food;
+
+                let food_x: f32 = food_transform.translation.x;
+                let food_y: f32 = food_transform.translation.y;
+
+                if player_x == food_x && player_y == food_y {
+                    cmd.entity(food).despawn();
+                }
+            };
+
+            food.for_each(is_it_eaten);
+        }
+    }
 }
+
+#[derive(Component)]
+pub struct Tail;
+
+impl Tail {}

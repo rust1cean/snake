@@ -13,7 +13,7 @@ impl Plugin for GridPlugin {
 }
 
 impl GridPlugin {
-    /// Moves the reference frame from the center to the lower left corner.
+    /// Moves the reference frame from the center to the lower left corner
     pub fn position_translation<T: Component>(
         mut cmd: Commands,
         mut entities: Query<(Entity, &mut Transform), With<T>>,
