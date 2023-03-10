@@ -10,7 +10,7 @@ pub struct FoodPlugin;
 
 impl Plugin for FoodPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(Food::spawn.run_if(MaxFoodCount::more_than::<Food>));
+        app.add_system(Food::spawn.run_if(MaxFoodCount::is_more_than::<Food>));
     }
 }
 
@@ -38,7 +38,8 @@ impl Food {
     }
 
     pub fn food_color() -> Color {
-        Color::rgb(0.5, 0.5, 0.5)
+        let random = rand::thread_rng().gen_range(60..120);
+        Color::hsla(random as f32, 100., 50., 1.)
     }
 
     pub fn random_position() -> Vec3 {

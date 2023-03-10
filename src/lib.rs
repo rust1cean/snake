@@ -13,7 +13,7 @@ pub struct WindowSetup;
 
 impl Plugin for WindowSetup {
     fn build(&self, app: &mut App) {
-        app.add_state::<State>()
+        app.add_state::<AppState>()
             .add_startup_system(Self::setup_camera)
             .add_plugins(DefaultPlugins.set(self.window_plugin()));
     }
@@ -56,7 +56,7 @@ impl Plugin for GamePlugin {
 impl GamePlugin {}
 
 #[derive(Hash, Clone, States, PartialEq, Eq, Debug, Default)]
-pub enum State {
+pub enum AppState {
     #[default]
     MainMenu,
     InGame,
@@ -81,11 +81,11 @@ pub fn spawned<T: Component>(entity: Query<&T>) -> bool {
 /// Compares the maximum number of entities with the current ones
 ///
 /// Example to use:
-/// app.add_system(Food::spawn.run_if(MaxFoodCount::more_than::<Food>));
+/// app.add_system(Food::spawn.run_if(MaxFoodCount::is_more_than::<Food>));
 pub trait MaxEntities {
     const COUNT: usize;
 
-    fn more_than<T: Component>(entities: Query<&T>) -> bool {
+    fn is_more_than<T: Component>(entities: Query<&T>) -> bool {
         Self::COUNT > entities.iter().len()
     }
 }
