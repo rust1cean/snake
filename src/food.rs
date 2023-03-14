@@ -1,9 +1,12 @@
 use crate::{
-    config::{CELL_HEIGHT, CELL_WIDTH, COUNT_CELLS_HEIGHT, COUNT_CELLS_WIDTH, MAX_FOOD_COUNT},
-    grid::ToTranslation,
+    config::{
+        COUNT_CELLS_HEIGHT, COUNT_CELLS_WIDTH, FOOD_COLOR_RANGE, FOOD_HEIGHT, FOOD_WIDTH,
+        MAX_FOOD_COUNT,
+    },
+    ground::{CoordSystem, Position},
     MaxEntities,
 };
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
 use rand::Rng;
 
 pub struct FoodPlugin;
@@ -15,48 +18,56 @@ impl Plugin for FoodPlugin {
 }
 
 #[derive(Component)]
+pub struct Obstacle;
+
+#[derive(Component)]
 pub struct Food;
 
 impl Food {
-    pub fn spawn(
-        mut cmd: Commands,
-        mut meshes: ResMut<Assets<Mesh>>,
-        mut materials: ResMut<Assets<ColorMaterial>>,
-    ) {
-        let food_mesh: MaterialMesh2dBundle<ColorMaterial> = MaterialMesh2dBundle {
-            transform: Transform {
-                translation: Self::random_position(),
-                scale: Self::random_scale(),
+    pub fn spawn(mut obstacles: Query<&Position, With<Obstacle>>, mut cmd: Commands) {
+        let mut spawn_food = |position: Position| -> () {
+            let color: Color = Self::food_color();
+            let mesh: SpriteBundle = SpriteBundle {
+                sprite: Sprite {
+                    color,
+                    custom_size: Some(Vec2::new(FOOD_WIDTH, FOOD_HEIGHT)),
+                    ..default()
+                },
                 ..default()
-            },
-            mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-            material: materials.add(ColorMaterial::from(Self::food_color())),
-            ..default()
+            };
+
+            cmd.spawn((mesh, position, Food, Obstacle));
         };
 
-        cmd.spawn(food_mesh).insert(Food).insert(ToTranslation);
+        let mut no_obstacles_for = |pos: &Position| -> bool {
+            for obs in &mut obstacles {
+                if CoordSystem::in_one_position(&obs, &pos) {
+                    return false;
+                }
+            }
+            true
+        };
+
+        let position: Position = Self::random_position();
+
+        if no_obstacles_for(&position) {
+            spawn_food(position);
+        }
     }
 
     pub fn food_color() -> Color {
-        let random = rand::thread_rng().gen_range(60..120);
-        Color::hsla(random as f32, 100., 50., 1.)
+        let random = rand::thread_rng().gen_range(FOOD_COLOR_RANGE);
+        Color::hsla(random as f32, 0.5, 0.5, 1.)
     }
 
-    pub fn random_position() -> Vec3 {
+    pub fn random_position() -> Position {
         let mut rng = rand::thread_rng();
 
-        let horizontal_count = rng.gen_range(0..COUNT_CELLS_WIDTH);
-        let vertical_count = rng.gen_range(0..COUNT_CELLS_HEIGHT);
+        let x: i32 = rng.gen_range(0..COUNT_CELLS_WIDTH as i32);
+        let y: i32 = rng.gen_range(0..COUNT_CELLS_HEIGHT as i32);
+        let z: i32 = 0;
 
-        let x = (CELL_WIDTH) * horizontal_count as f32;
-        let y = (CELL_HEIGHT) * vertical_count as f32;
-        let z = 1.;
-
-        Vec3::new(x, y, z)
-    }
-
-    pub fn random_scale() -> Vec3 {
-        Vec3::new(CELL_WIDTH, CELL_HEIGHT, 1.)
+        Position { x, y, z }
     }
 }
 

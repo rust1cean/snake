@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.10.0"
+bevy = {version = "0.10.0", default_features = false, features = ["bevy_winit", "bevy_render", "bevy_core_pipeline", "bevy_asset", "bevy_sprite"]}
 rand = "0.8.5"
