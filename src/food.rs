@@ -1,8 +1,5 @@
 use crate::{
-    config::{
-        COUNT_CELLS_HEIGHT, COUNT_CELLS_WIDTH, FOOD_COLOR_RANGE, FOOD_HEIGHT, FOOD_WIDTH,
-        MAX_FOOD_COUNT,
-    },
+    config::{FOOD_COLOR_RANGE, FOOD_HEIGHT, FOOD_WIDTH, GRID_HEIGHT, GRID_WIDTH, MAX_FOOD_COUNT},
     ground::{CoordSystem, Position},
     MaxEntities,
 };
@@ -13,7 +10,11 @@ pub struct FoodPlugin;
 
 impl Plugin for FoodPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(Food::spawn.run_if(MaxFoodCount::is_more_than::<Food>));
+        app.add_system(
+            Food::spawn
+                .run_if(MaxFoodCount::is_more_than::<Food>)
+                .in_schedule(CoreSchedule::FixedUpdate),
+        );
     }
 }
 
@@ -63,8 +64,8 @@ impl Food {
     pub fn random_position() -> Position {
         let mut rng = rand::thread_rng();
 
-        let x: i32 = rng.gen_range(0..COUNT_CELLS_WIDTH as i32);
-        let y: i32 = rng.gen_range(0..COUNT_CELLS_HEIGHT as i32);
+        let x: i32 = rng.gen_range(0..GRID_WIDTH as i32);
+        let y: i32 = rng.gen_range(0..GRID_HEIGHT as i32);
         let z: i32 = 0;
 
         Position { x, y, z }

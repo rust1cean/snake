@@ -4,7 +4,7 @@ pub mod ground;
 pub mod player;
 
 use bevy::{core_pipeline::clear_color::ClearColorConfig, prelude::*, window::WindowResolution};
-use config::{HEIGHT, TITLE, WIDTH};
+use config::{FRAMERATE, HEIGHT, TITLE, WIDTH};
 use food::FoodPlugin;
 use ground::GroundPlugin;
 use player::PlayerPlugin;
@@ -49,6 +49,8 @@ pub struct Game;
 
 impl Plugin for Game {
     fn build(&self, app: &mut App) {
+        app.insert_resource(FixedTime::new_from_secs(FRAMERATE));
+
         app.add_plugin(PlayerPlugin)
             .add_plugin(GroundPlugin)
             .add_plugin(FoodPlugin);

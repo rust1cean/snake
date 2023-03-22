@@ -1,7 +1,7 @@
 use crate::{
     config::{
         HALF_HEIGHT, HALF_WIDTH, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_X, PLAYER_Y,
-        PLAYER_Z, STEP_TIME, TAIL_HEIGHT, TAIL_WIDTH,
+        PLAYER_Z, TAIL_HEIGHT, TAIL_WIDTH,
     },
     food::{Food, Obstacle},
     ground::{CoordSystem, Position},
@@ -9,13 +9,19 @@ use crate::{
 };
 use bevy::prelude::*;
 
+pub struct PlayerGrowthEvent;
+
+#[derive(Component)]
+pub struct Tail;
+
 #[derive(Component)]
 pub struct TailSegment;
 
 #[derive(Component)]
-pub struct SnakeEnd;
+pub struct SnakeHead;
 
-pub struct PlayerGrowthEvent;
+#[derive(Component)]
+pub struct SnakeEnd;
 
 #[derive(Component, PartialEq, Eq)]
 pub enum Direction {
@@ -42,21 +48,16 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(Player::out_bounds)
-            .add_system(Player::controls)
-            .add_system(Player::eat)
-            .add_system(Tail::growth);
-
-        // Events
-        app.add_event::<PlayerGrowthEvent>();
-
-        // Conditions
-        app.add_system(Player::spawn.run_if(not_spawned::<Player>));
-
-        // In schedule
-        app.insert_resource(FixedTime::new_from_secs(STEP_TIME))
-            .add_system(Player::moving.in_schedule(CoreSchedule::FixedUpdate))
-            .add_system(Tail::tail_move.in_schedule(CoreSchedule::FixedUpdate));
+        app.add_systems((
+            Player::spawn.run_if(not_spawned::<Player>),
+            Player::growth,
+            Player::collision_with_tail.in_schedule(CoreSchedule::FixedUpdate),
+            Player::moving.in_schedule(CoreSchedule::FixedUpdate),
+            Player::out_bounds.in_schedule(CoreSchedule::FixedUpdate),
+            Player::eat.in_schedule(CoreSchedule::FixedUpdate),
+            Player::controls,
+        ))
+        .add_event::<PlayerGrowthEvent>();
     }
 }
 
@@ -77,6 +78,7 @@ impl Player {
         cmd.spawn((
             mesh,
             Player,
+            SnakeHead,
             SnakeEnd,
             Obstacle,
             Position::new(PLAYER_X, PLAYER_Y, PLAYER_Z),
@@ -84,8 +86,21 @@ impl Player {
         ));
     }
 
-    pub fn moving(mut query: Query<(&Direction, &mut Position), With<Player>>) {
-        if let Ok((direction, mut position)) = query.get_single_mut() {
+    pub fn moving(
+        mut head: Query<(&Direction, &mut Position), With<Player>>,
+        mut tail: Query<&mut Position, (With<TailSegment>, Without<Player>)>,
+    ) {
+        if let Ok((direction, mut position)) = head.get_single_mut() {
+            // Move tail
+            {
+                let mut prev: Position = position.clone();
+
+                tail.for_each_mut(|mut segment| {
+                    (*segment, prev) = (prev, *segment);
+                });
+            }
+
+            // Move head
             match *direction {
                 Direction::Left => position.x -= 1,
                 Direction::Right => position.x += 1,
@@ -131,6 +146,19 @@ impl Player {
         }
     }
 
+    pub fn collision_with_tail(
+        head: Query<&Position, With<SnakeHead>>,
+        tail: Query<&Position, With<TailSegment>>,
+    ) {
+        if let Ok(head) = head.get_single() {
+            tail.for_each(|tail| {
+                if CoordSystem::in_one_position(&head, &tail) {
+                    dbg!("Collision with tail!");
+                }
+            });
+        }
+    }
+
     pub fn eat(
         mut cmd: Commands,
         mut growth_writer: EventWriter<PlayerGrowthEvent>,
@@ -151,12 +179,6 @@ impl Player {
             food.for_each(is_it_eaten);
         }
     }
-}
-
-#[derive(Component)]
-pub struct Tail;
-
-impl Tail {
     pub fn growth(
         mut cmd: Commands,
         mut growth_reader: EventReader<PlayerGrowthEvent>,
@@ -187,19 +209,6 @@ impl Tail {
                 // Remove previous segment end
                 cmd.entity(segment_end).remove::<SnakeEnd>();
             }
-        }
-    }
-
-    pub fn tail_move(
-        player: Query<&Position, With<Player>>,
-        mut tail: Query<&mut Position, (With<TailSegment>, Without<Player>)>,
-    ) {
-        if let Ok(player) = player.get_single() {
-            let mut prev: Position = player.clone();
-
-            tail.for_each_mut(|mut segment| {
-                (*segment, prev) = (prev, *segment);
-            });
         }
     }
 }
